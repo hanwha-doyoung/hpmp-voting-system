@@ -1,0 +1,27 @@
+{
+  "name": "tpmp-voting-system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "lite-server",
+    "test": "npm run truffle test ./test/**/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hanwha-doyoung/hpmp-voting-system.git"
+  },
+  "author": "Doyoung Kim",
+  "license": "ISC",
+  "dependencies": {
+    "truffle": "^5.1.54"
+  },
+  "devDependencies": {
+    "lite-server": "^2.3.0",
+    "chai": "^4.2.0",
+    "openzeppelin-test-helpers": "^0.5.1"
+  }
+}
