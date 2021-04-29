@@ -1,11 +1,11 @@
 pragma solidity 0.5.0;
+pragma experimental ABIEncoderV2;
 
 contract Vote {
     struct Voter {
         uint weight;
         bool voted;
         uint vote;
-        // address delegate;
     }
 
     struct Proposal {
@@ -13,10 +13,16 @@ contract Vote {
         uint voteCount;
     }
 
+    struct Account {
+        address eoa;
+        string passphrase;
+        string keystore;
+    }
+
     event rightToVoteGiven(address voter);
-    // event delegated(address voter, address delegate);
     event voted(address voter);
     event proposalAdded(string proposal);
+    event accountAdded(address eoa);
 
     modifier onlyChairperson() {
         require(_isChairperson(), "Not Authorized");
@@ -26,18 +32,21 @@ contract Vote {
 
     address public chairperson;
     Proposal[] public proposals;
+    Account[] public accountPool;
+
     // mapping from voter address to Voter struct
     mapping(address => Voter) internal _voters;
-
 
     /**
      * @dev Initialize Voting System
      */
-    constructor () public {
+    constructor(string[] memory input) public {
         chairperson = msg.sender;
-//        voters[chairperson].weight = 1;
         // To make proposal[0] empty
         addProposal("EMPTY");
+        for(uint8 i=0; i<input.length; i++) {
+            addProposal(input[i]);
+        }
     }
 
     /**
@@ -49,6 +58,39 @@ contract Vote {
     }
 
 
+    function _rand() private view returns(uint256) {
+        uint256 seed = uint256(keccak256(abi.encodePacked(
+                block.timestamp + block.difficulty +
+                ((uint256(keccak256(abi.encodePacked(block.coinbase)))) / (now)) +
+                block.gaslimit +
+                ((uint256(keccak256(abi.encodePacked(msg.sender)))) / (now)) +
+                block.number
+            )));
+
+        return (seed - ((seed / 1000) * 1000))%accountPool.length;
+    }
+
+
+    function addToPool(address e, string memory p, string memory k) public onlyChairperson returns (uint) {
+        giveRightToVote(e);
+        accountPool.push(Account({
+            eoa: e,
+            passphrase: p,
+            keystore: k
+        }));
+        emit accountAdded(e);
+
+        return accountPool.length;
+    }
+
+    function getAddress(uint256 i) public view returns (address) {
+        return accountPool[i].eoa;
+    }
+
+
+    function giveAccount() public view returns (Account memory) {
+        return accountPool[_rand()];
+    }
     /**
      * @dev Check if msg.sender is chairperson
      * @return true if `msg.sender` is the owner of the contract
@@ -81,23 +123,6 @@ contract Vote {
     }
 
     /**
-    * @dev Get index of proposal that voter has voted for
-    * @return index of the proposal
-    */
-    // TODO: delete for final version, use only for checking when testing
-    function getVote(address voter) public view returns (uint) {
-        return _voters[voter].vote;
-    }
-
-    /**
-    * @dev Get index of proposal that voter has voted for
-    * @return index of the proposal
-    */
-//    function getDelegate(address voter) public view returns (address) {
-//        return _voters[voter].delegate;
-//    }
-
-    /**
      * @dev Give voting right to a voter by the chairperson
      * @param voter Address of the voter that will receive the right to vote
      */
@@ -121,6 +146,14 @@ contract Vote {
         emit proposalAdded(proposalName);
     }
 
+    function getAllProposals() public view returns(string[] memory) {
+        string[] memory result = new string[](proposals.length);
+        for(uint8 i=0; i<proposals.length; i++) {
+            result[i] = proposals[i].name;
+        }
+        return result;
+    }
+
     function getProposalName(uint idx) public view returns (string memory) {
         return proposals[idx].name;
     }
@@ -128,35 +161,17 @@ contract Vote {
         return proposals[idx].voteCount;
     }
 
+    function getAllProposalVoteCount() public view returns (uint[] memory) {
+        uint[] memory result = new uint[](proposals.length);
+        for(uint8 i=0; i<proposals.length; i++) {
+            result[i] = getProposalVoteCount(i);
+        }
+        return result;
+    }
+
     function getNumberOfProposals() public view returns (uint) {
         return proposals.length;
     }
-    /**
-     * @dev Delegates voting right to another person
-     * @param to Address of the delegate who will receive the right to vote of the sender
-     */
-//    function delegateTo(address to) public {
-//        Voter memory sender = _voters[msg.sender];
-//        require(!sender.voted, "Already voted account");
-//        require(sender.weight > 0, "Right to vote not given by the chairperson");
-//
-//        // delegate should not be ZERO_ADDRESS and voter(msg.sender) self
-//        require(_voters[to].delegate != address(0), "Cannot delegate to Zero Address");
-//        require(_voters[to].delegate != msg.sender, "Cannot delegate to oneself");
-//        to = _voters[to].delegate;
-//
-//        sender.voted = true;
-//        sender.delegate = to;
-//
-//        emit delegated(msg.sender, to);
-//
-//        Voter memory delegate = _voters[to];
-//        if(delegate.voted) { // if delegate has already voted(using his/her vote right, the delegated vote will also be the same as the given vote)
-//            proposals[delegate.vote].voteCount += sender.weight;
-//        } else { // if delegate has not voted, gives sender's vote right
-//            delegate.weight += sender.weight;
-//        }
-//    }
 
     /**
      * @dev Voter votes for the proposal
